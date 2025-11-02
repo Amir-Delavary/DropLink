@@ -12,11 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('links', function (Blueprint $table) {
+        Schema::create('files', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained("users");
-            $table->string('file_path');
-            $table->string('link');
+            $table->string('path');
+            $table->string('url')->nullable();
             $table->enum("privacy", FileTypes::cases());
             $table->timestamps();
         });
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('links');
+        Schema::dropIfExists('files');
     }
 };

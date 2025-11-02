@@ -8,11 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class File extends Model
 {
-    protected $fillable = ['privacy'];
+    protected $fillable = ['privacy', 'private'];
 
-    protected $casts = [
-        "privacy" => FileTypes::class,
-    ];
     protected $hidden = [
         "id",
         'user_id',

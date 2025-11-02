@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\FileTypes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +24,7 @@ class FileRequest extends FormRequest
     {
         return [
             "file" => "required|file|extensions:png,jpg,jpeg,pdf|mimes:png,jpg,jpeg,pdf,text|max:4096",
-            "privacy" => [Rule::enum(FileTypes::class)],
+            "private" => "required|boolean",
         ];
     }
 }

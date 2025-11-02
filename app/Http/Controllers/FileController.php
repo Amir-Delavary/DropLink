@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\FileTypes;
 use App\Http\Requests\FileRequest;
 use App\Http\Resources\FileResource;
 use App\Models\File;
@@ -32,17 +31,19 @@ class FileController extends Controller
     public function store(FileRequest $request)
     {
         $user = auth()->user();
-        $disk = $request->privacy === FileTypes::Private ? Storage::disk('private') : Storage::disk('public');
-        $path = $disk->putFile("$user->id", $request->file('file'));
+
+        $disk = $request->private ? 'private' : 'public';
+        $path = $request->file('file')->store($user->id, $disk);
+
         $file = new File();
         $file->user()->associate($user);
-        $file->privacy = $request->privacy === 'private' ? FileTypes::Private : FileTypes::Public;
+        $file->private = $request->private;
         $file->path = $path;
+        $file->expires_at = now()->addDay(3);
         $file->save();
-
-        $file->url = URL::temporarySignedRoute("download", now()->addDay(3), ['file' => $file->id]);
+        $file->url = URL::temporarySignedRoute('download', $file->expires_at, ['file' => $file->id]);
         $file->save();
-        return new FileResource($file);
+        return FileResource::make($file);
     }
 
     /**
@@ -77,22 +78,21 @@ class FileController extends Controller
             return response()->json(["message" => "Link not found"], 404);
         }
         $file->delete();
-        return response()->json(["message" => "deleted successfully"], 500);
+        return response()->json(["message" => "deleted successfully"], 200);
     }
 
-    public function download(File $file)
+    public function download($file)
     {
         $user = auth()->user();
-        $disk = $file->privacy === FileTypes::Private ? 'private' : 'public';
-        if ($file->privacy === FileTypes::Private){
-            if ($user->id !== $file->user_id){
-                return response()->json(["message" => "File not found"], 404);
-            }
+        $file = File::where("id", $file)->first();
+        if ($file === null) {return response()->json(["message" => "File not found"], 404);}
+        $disk = $file->private ? 'private' : 'public';
+        if ($disk === 'private' && $user && $user->id === $file->user_id) {
+            return Storage::disk("$disk")->download($file->path);
         }
-        if (!Storage::disk($disk)->exists($file->path))
-        {
-            return response()->json(["message" => "File not found"], 404);
+        elseif ($disk === 'public'){
+            return Storage::disk($disk)->download($file->path);
         }
-        return Storage::disk($disk)->download($file->path);
+        return response()->json(["message" => "Forbidden"], 403);
     }
 }

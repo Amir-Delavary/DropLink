@@ -17,7 +17,7 @@ class FileResource extends JsonResource
         return [
             "path" => $this->resource->path,
             "url" => $this->resource->url,
-            "privacy" => $this->resource->privacy,
+            "private" => $this->resource->private,
         ];
     }
 }

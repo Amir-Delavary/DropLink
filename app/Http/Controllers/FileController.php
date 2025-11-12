@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\FileUploaded;
 use App\Http\Requests\FileRequest;
 use App\Http\Resources\FileResource;
+use App\Jobs\DeleteFile;
 use App\Models\File;
 use Illuminate\Routing\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
@@ -43,28 +46,46 @@ class FileController extends Controller
         $file->save();
         $file->url = URL::temporarySignedRoute('download', $file->expires_at, ['file' => $file->id]);
         $file->save();
+        FileUploaded::dispatch($file);
         return FileResource::make($file);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show($file)
+    public function show(File $file)
     {
         $user = auth()->user();
-        $data = File::where("user_id", $user->id)->where("id", $file)->first();
-        if ($data === null) {
-            return response()->json(["message" => "Link not found"], 404);
+        if ($user and ($file->user_id === $user->id))
+        {
+            return FileResource::make($file);
         }
-        return FileResource::make($data);
+        return response()->json(["message" => "File not found."], 404);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(FileRequest $request, File $file)
+    public function update(Request $request, File $file)
     {
-        //
+        $user = auth()->user();
+        $request->validate([
+            "file" => "nullable|file|extensions:png,jpg,jpeg,pdf|mimes:png,jpg,jpeg,pdf,text|max:4096",
+            'private' => 'required|boolean',
+        ]);
+        if ($user and ($file->user_id === $user->id))
+        {
+            $disk = $request->private ? 'private' : 'public';
+            if ($request->file){
+                DeleteFile::dispatch($file, true);
+                $path = $request->file('file')->store($user->id, $disk);
+            }
+            else{$path = $file->path;}
+            $file->update(['path' => $path, 'private' => $disk]);
+            $file->save();
+            return FileResource::make($file);
+        }
+        return response()->json(["message" => "File not found."], 404);
     }
 
     /**
@@ -77,7 +98,7 @@ class FileController extends Controller
         {
             return response()->json(["message" => "Link not found"], 404);
         }
-        $file->delete();
+        DeleteFile::dispatch($file);
         return response()->json(["message" => "deleted successfully"], 200);
     }
 

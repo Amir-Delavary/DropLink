@@ -15,7 +15,6 @@ class FileResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            "path" => $this->resource->path,
             "url" => $this->resource->url,
             "private" => $this->resource->private,
         ];
